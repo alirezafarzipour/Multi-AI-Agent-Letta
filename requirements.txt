@@ -1,0 +1,4 @@
+python_dotenv==1.0.1
+openai==1.45.1
+letta==0.1.4
+crewai-tools==0.12.0
