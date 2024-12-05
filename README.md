@@ -14,7 +14,6 @@ This project is designed for the automated review of candidate resumes to assess
 - [Memory Management](#memory-management)
 - [Examples](#examples)
 - [Contributing](#contributing)
-- [License](#license)
 ---
 
 ### Agents Overview
@@ -202,6 +201,7 @@ FoundationAI
 ```
 ---
 
+Thanks to: [DL.ai](https://deeplearning.ai/) and [Letta](https://www.letta.com/)
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or create an issue for feedback or feature requests.
