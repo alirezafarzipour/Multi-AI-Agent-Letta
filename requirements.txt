@@ -1,4 +1,18 @@
-python_dotenv==1.0.1
-openai==1.45.1
-letta==0.1.4
-crewai-tools==0.12.0
+# ── Core ──────────────────────────────────────────────────────────────────────
+streamlit>=1.35.0
+
+# ── Letta (multi-agent framework) ─────────────────────────────────────────────
+# letta>=0.1.4
+letta-client>=1.10.3
+asyncpg>=0.31.0
+pgvector>=0.4.2
+
+# ── PDF parsing ───────────────────────────────────────────────────────────────
+pdfplumber>=0.11.0      # primary PDF extractor (layout-aware)
+pypdf>=4.0.0            # fallback PDF extractor
+
+# ── Env / config ──────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+
+# ── OpenAI (optional — only needed if LLM_BACKEND = "openai") ─────────────────
+openai>=1.45.0
