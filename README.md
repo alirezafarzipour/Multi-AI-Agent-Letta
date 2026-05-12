@@ -1,207 +1,280 @@
-# Multi AI Agent Collaboration System
+# Multi-AI Agent Resume Screening System
 
-## Introduction
-
-This repository demonstrates a **multi-agent collaboration system** designed using the powerful [Letta](https://letta.com/) framework [GitHub](https://github.com/letta-ai/letta). The system employs three agents that collaborate via individual and shared memory blocks, leveraging state-of-the-art LLMs for intelligent decision-making and communication. 
-This project is designed for the automated review of candidate resumes to assess their qualifications for a company's job requirements. It also handles generating acceptance or rejection emails to candidates for interview scheduling.
-
-## Table of Contents
-- [Agents Overview](#agents-overview)
-- [Agents Collaboration Details](#agents-collaboration-details)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Memory Management](#memory-management)
-- [Examples](#examples)
-- [Contributing](#contributing)
----
-
-### Agents Overview
-
-1. **Recruiter Agent**:
-   - Role: Acts as the orchestrator, gathering candidate data and coordinating tasks between other agents.
-   
-2. **Evaluator Agent**:
-   - Role: Evaluates candidate resumes and determines their suitability.
-   
-3. **Outreach Agent**:
-   - Role: Drafts and sends personalized emails to candidates.
-
----
-### Agents Collaboration Details
-
-Each agent maintains its **own memory** while sharing a **common memory block** (`company block`). This enables effective collaboration by:
-- Sending messages to each other.
-- Leveraging shared knowledge from the `company block`.
-
----
-### Key Features
-- Powered by `gemma2 9b` locally using [ollama](https://ollama.ai/).
-- Flexibility to integrate other models like **llama**, **OpenAI** (e.g., GPT-4).
-- Showcases advanced memory management capabilities using `Letta`.
-
-Letta framework designed with Agent as a Service principles, enabling seamless integration with external applications via REST APIs.
+An AI-powered Applicant Tracking System (ATS) built on the [Letta](https://letta.com/) multi-agent framework. Three collaborative agents — **Recruiter**, **Evaluator**, and **Outreach** — share persistent memory blocks to screen resumes, score candidates, and automatically draft personalised acceptance or rejection emails.
 
 ---
 
-## Installation
+## Architecture
 
-Follow these steps to set up the project:
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Streamlit UI                         │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                    letta-client
+                         │
+┌────────────────────────▼────────────────────────────────┐
+│                  Letta Server (Docker)                  │
+│                                                         │
+│   ┌──────────────┐      ┌──────────────────────────┐   │
+│   │  Eval Agent  │─────▶│     Outreach Agent       │   │
+│   │              │      │  (acceptance + rejection  │   │
+│   │ scores 1-10  │      │         emails)           │   │
+│   └──────┬───────┘      └──────────────────────────┘   │
+│          │                                              │
+│   ┌──────▼──────────────────────────────────────────┐  │
+│   │           Shared Memory Blocks                  │  │
+│   │  company    │  candidates log  │  decisions log │  │
+│   └─────────────────────────────────────────────────┘  │
+│                         │                               │
+│                    LM Studio API                        │
+│               (local LLM via OpenAI compat.)            │
+└─────────────────────────────────────────────────────────┘
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/alirezafarzipour/multi-agent-collaboration.git
-   cd multi-agent-collaboration
-   ```
+### Shared Memory Blocks
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Set up the `ollama` model server locally:
-   - Install [ollama](https://ollama.ai/).
-   - Start the server using:
-     ```bash
-     ollama serve
-     ```
-
-4. Configure your LLM settings in the Python script:
-   ```python
-   from letta import create_client
-   from letta.schemas.llm_config import LLMConfig
-
-   client = create_client()
-
-   llm_config = LLMConfig(
-       model="gemma2:latest",
-       provider="ollama",
-       model_endpoint="http://localhost:11434",
-       model_endpoint_type="ollama",
-       context_window=8192,
-       # params={"temperature": 0.7, "max_tokens": 512},
-   )
-
-   client.set_default_llm_config(llm_config)
-   ```
-To switch models, modify the `model` parameter in the configuration:
-
-- Using `llama` models:
-  ```python
-  model="llama3.2"
-  ```
-
-- Using OpenAI models:
-  Ensure you have set up your API key, then configure the client as follows:
-  ```python
-  from letta import create_client
-  from letta.schemas.llm_config import LLMConfig
-  
-  client = create_client()
-  client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
-  ```
----
-
-## Usage
-
-The code is provided as a Jupyter Notebook (`.ipynb`). You can run notebooks locally using **Jupyter Notebook** or in the cloud using **Google Colab**:
-
-1. **Jupyter Notebook**:
-   - Install Jupyter Notebook if not already installed:
-     ```bash
-     pip install notebook
-     ```
-   - Navigate to the directory of the desired module and run:
-     ```bash
-     jupyter notebook
-     ```
-   - Open the corresponding notebook file (e.g., `semantic_search.ipynb`) and execute the cells step by step.
-
-2. **Google Colab**:
-   - Upload the notebook to Google Colab:
-     - Go to [Google Colab](https://colab.research.google.com/).
-     - Click on `File > Upload Notebook` and upload the desired `.ipynb` file.
-   - Install required dependencies in the first cell and proceed with the execution.
-
-This structure allows for a user-friendly experience while experimenting with the modules.
+| Block | Writers | Readers | Purpose |
+|---|---|---|---|
+| `company` | setup | both agents | Job description, required skills, company info |
+| `candidates` | eval agent | — | Running log of all screened candidates |
+| `decisions` | eval agent | outreach agent | Accepted candidates with key strengths |
 
 ---
 
-## Memory Management
+## Prerequisites
 
-The `Letta` framework provides robust memory management features. Each agent can maintain its memory and access/update shared memory blocks.
+- Docker
+- LM Studio (with a model loaded — tested with `qwen3-8b@q6_k`)
+- Python 3.10+
+- An existing PostgreSQL service on port `5432` is fine — the setup uses `5435:5432` to avoid conflicts
 
-
-Initial memory configuration for the `company block`:
-```python
-from letta.schemas.block import Block 
-
-org_description= "The company is called AgentOS " \
-+ "and is building AI tools to make it easier to create " \
-+ "and deploy LLM agents."
-
-org_block = Block(name="company", value=org_description )
-```
----
-## Examples
-
-### Sending Personalized Emails
-
-The `Outreach Agent` generates an email based on the company name in the shared memory block:
-```python
-response = client.send_message(
-    agent_name="eval_agent", 
-    role="user", 
-    message="Candidate: Tony Stark"
-)
-```
-```
-eval agent Tony Stark
-Pretend to email: Hi Tony,
-
-We at AgentOS are building cutting-edge AI tools to make it easier to create and deploy LLM agents. We were very impressed with your background in React development and your academic achievements. Your experience in [mention specific relevant experience from resume] aligns perfectly with our needs.
-
-We'd love to chat with you about how your skills could contribute to our mission. Are you available for a quick call next week?
-
-Best,
-Bob
-AgentOS
-```
-
-### Updating Company Name in Memory
-
-We can replace or correct data in memories by sending feedback to its agents. Example of replacing the company name from `AgentOS` to `FoundationAI`:
-```python
-feedback = "The company is also renamed to FoundationAI"
-response = client.send_message(
-    agent_name="eval_agent", 
-    role="user", 
-    message=feedback
-)
-```
-After that, **eval_agent** uses the new information to evaluate candidates and writing emails:
-```python
-response = client.send_message(
-    agent_name="eval_agent", 
-    role="system", 
-    message="Candidate: Spongebob Squarepants"
-)
-```
-```
-eval agent Spongebob Squarepants
-Pretend to email: Hi Spongebob,
-
-We at FoundationAI are building the future of AI by developing cutting-edge foundation models. We were very impressed with your academic achievements and your extensive experience in AI research, particularly in multi-agent systems and adaptive learning. Your expertise aligns perfectly with our focus on foundation model training.
-
-We'd love to chat with you about how your skills could contribute to our mission. Are you available for a quick call next week?
-
-Best,
-Bob
-FoundationAI
-```
 ---
 
-Thanks to: [DL.ai](https://deeplearning.ai/) and [Letta](https://www.letta.com/)
-## Contributing
+## Step 1 — Configure LM Studio
 
-Contributions are welcome! Please feel free to submit a pull request or create an issue for feedback or feature requests.
+1. Load your model (e.g. `qwen3-8b@q6_k`)
+2. Start the local server
+3. **Critical:** go to `Settings → Local Server → Network → Server Host` and change `127.0.0.1` → `0.0.0.0`
+4. Restart the LM Studio server
+5. Verify it is reachable from outside localhost:
+
+```bash
+# Replace with your actual LAN IP
+ip route get 1.1.1.1 | grep -oP 'src \K\S+'   # find your IP
+
+curl -s http://192.168.x.x:1234/v1/models | python3 -m json.tool | grep '"id"'
+```
+
+> **Why `0.0.0.0`?** The Letta Docker container cannot reach `127.0.0.1` on the host directly. Setting LM Studio to listen on all interfaces makes it reachable via `host.docker.internal`.
+
+---
+
+## Step 2 — Start the Letta Server (Docker)
+
+```bash
+docker run -d \
+  --name letta-server \
+  --add-host=host.docker.internal:host-gateway \
+  -v ~/.letta/.persist/pgdata:/var/lib/postgresql/data \
+  -p 8283:8283 \
+  -p 5435:5432 \
+  -e LMSTUDIO_BASE_URL="http://host.docker.internal:1234" \
+  letta/letta:latest
+```
+
+**Flags explained:**
+
+| Flag | Reason |
+|---|---|
+| `--add-host=host.docker.internal:host-gateway` | Lets the container reach LM Studio on the host (Linux only) |
+| `-v ~/.letta/.persist/pgdata:...` | Persists the PostgreSQL data across container restarts |
+| `-p 8283:8283` | Letta REST API |
+| `-p 5435:5432` | Exposes internal Postgres on port 5435 to avoid conflict with any existing Postgres on 5432 |
+| `LMSTUDIO_BASE_URL` | Tells Letta where to find the LM Studio OpenAI-compatible endpoint |
+
+Wait ~15 seconds for startup, then verify:
+
+```bash
+curl -s http://localhost:8283/v1/health
+curl -s http://localhost:8283/v1/models/ | python3 -m json.tool | grep '"handle"'
+```
+
+You should see handles like `lmstudio_openai/qwen3-8b@q6_k`.
+
+---
+
+## Step 3 — Register the LM Studio Provider (first time only)
+
+If the models list is empty or only shows `letta/letta-free`, register the provider manually:
+
+```bash
+curl -s -X POST http://localhost:8283/v1/providers/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "lmstudio",
+    "provider_type": "lmstudio_openai",
+    "api_key": "dummy-key",
+    "base_url": "http://host.docker.internal:1234"
+  }'
+```
+
+Then restart the container to trigger model sync:
+
+```bash
+docker restart letta-server
+sleep 15
+curl -s http://localhost:8283/v1/models/ | python3 -m json.tool | grep '"handle"'
+```
+
+> **Note:** Provider registration is stored in the persistent volume (`~/.letta/.persist/pgdata`), so you only need to do this once — unless you delete the volume.
+
+---
+
+## Step 4 — Project Setup
+
+```bash
+git clone https://github.com/alirezafarzipour/Multi-AI-Agent-Letta.git
+cd Multi-AI-Agent-Letta
+
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+---
+
+## Step 5 — Configure the Application
+
+Copy the example env file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+# Letta server address
+LETTA_BASE_URL=http://localhost:8283
+
+# Model handle — copy exact value from: curl http://localhost:8283/v1/models/ | grep '"handle"'
+LETTA_LLM_MODEL=lmstudio_openai/qwen3-8b@q6_k
+LETTA_EMBEDDING_MODEL=letta/letta-free
+
+# LLM endpoint reachable from inside Docker
+LETTA_MODEL_ENDPOINT=http://host.docker.internal:1234/v1
+LETTA_CONTEXT_WINDOW=8192
+
+# Your company info (pre-fills the Streamlit sidebar)
+DEFAULT_COMPANY_NAME=Acme Corp
+DEFAULT_COMPANY_DESC=A fast-growing AI startup building products that change how people work.
+
+SCORE_THRESHOLD=6
+```
+
+> `LETTA_MODEL_ENDPOINT` must use `host.docker.internal` (not `localhost`) because the Letta server runs inside Docker.
+
+---
+
+## Step 6 — Run
+
+```bash
+streamlit run app.py
+```
+
+### In the Streamlit sidebar:
+
+1. Fill in **Company**, **Job description**, **Required skills**, **Position title**, and **Recruiter** info
+2. Click **⚡ Initialize Agents** — this creates the two agents with shared memory blocks
+3. Upload PDF/TXT resumes or use **🎭 Load Demo Data**
+4. Click **🚀 Run Screening Pipeline**
+
+---
+
+## Project Structure
+
+```
+.
+├── app.py                  # Streamlit UI
+├── config.py               # Reads settings from .env
+├── .env.example            # Template — copy to .env
+├── requirements.txt
+├── agents/
+│   └── ats_agents.py       # Letta agent setup, screening logic, batch processing
+├── utils/
+│   └── resume_parser.py    # PDF and TXT resume parser
+└── data/
+    └── resumes/            # Temporary resume files (auto-created)
+```
+
+---
+
+## Troubleshooting
+
+### `Failed to connect to OpenAI: Connection error`
+
+The agent was created with the wrong endpoint (`localhost` instead of `host.docker.internal`). Fix it:
+
+```bash
+python3 -c "
+from letta_client import Letta
+client = Letta(base_url='http://localhost:8283')
+for a in client.agents.list():
+    client.agents.update(
+        agent_id=a.id,
+        llm_config={
+            'model': 'qwen3-8b@q6_k',
+            'model_endpoint': 'http://host.docker.internal:1234/v1',
+            'model_endpoint_type': 'openai',
+            'context_window': 8192,
+        }
+    )
+    print(f'Fixed: {a.name}')
+"
+```
+
+Then re-initialize agents from the Streamlit sidebar.
+
+### `password authentication failed for user "letta"`
+
+Another PostgreSQL instance is running on port 5432 and conflicting with the container's internal DB. The Docker command in Step 2 already handles this with `-p 5435:5432`. Make sure you are using that exact command (not `--network host`).
+
+### Models list is empty after restart
+
+The provider registration is lost only if the Docker volume was deleted. Re-run Step 3.
+
+### Shared memory blocks stay empty
+
+Memory is updated by the application after each evaluation. If you see empty blocks, make sure you are using the latest `agents/ats_agents.py` (blocks are updated via `client.agents.blocks.update()`).
+
+### `Handle not found` error on Initialize
+
+Run the following to see all available model handles:
+
+```bash
+curl -s http://localhost:8283/v1/models/ | python3 -m json.tool | grep '"handle"'
+```
+
+Update `LETTA_LLM_MODEL` in your `.env` to match exactly.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Multi-agent framework | [Letta](https://letta.com/) v0.16.7 |
+| LLM | Local model via LM Studio (OpenAI-compatible API) |
+| Embedding | `letta/letta-free` (bundled) |
+| UI | Streamlit |
+| PDF parsing | pdfplumber + pypdf |
+| Database | PostgreSQL (inside Docker) |
+
+---
+
+## Academic Publications
+
+- Farzipour, A., Elmi, R., Nasiri, H. (2023). *Detection of Monkeypox Cases Based on Symptoms Using XGBoost and Shapley Additive Explanations Methods.* **Diagnostics**, 13(14), 2391. [doi.org/10.3390/diagnostics13142391](https://doi.org/10.3390/diagnostics13142391)
+- Farzipour, A., Elmi, R., Nasiri, H. (2023). *SyMPox: An Automated Monkeypox Detection System Based on Symptoms Using XGBoost.* **TechRxiv** (preprint). [doi.org/10.36227/techrxiv.24265333.v2](https://doi.org/10.36227/techrxiv.24265333.v2)
