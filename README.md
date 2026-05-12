@@ -271,10 +271,3 @@ Update `LETTA_LLM_MODEL` in your `.env` to match exactly.
 | UI | Streamlit |
 | PDF parsing | pdfplumber + pypdf |
 | Database | PostgreSQL (inside Docker) |
-
----
-
-## Academic Publications
-
-- Farzipour, A., Elmi, R., Nasiri, H. (2023). *Detection of Monkeypox Cases Based on Symptoms Using XGBoost and Shapley Additive Explanations Methods.* **Diagnostics**, 13(14), 2391. [doi.org/10.3390/diagnostics13142391](https://doi.org/10.3390/diagnostics13142391)
-- Farzipour, A., Elmi, R., Nasiri, H. (2023). *SyMPox: An Automated Monkeypox Detection System Based on Symptoms Using XGBoost.* **TechRxiv** (preprint). [doi.org/10.36227/techrxiv.24265333.v2](https://doi.org/10.36227/techrxiv.24265333.v2)
