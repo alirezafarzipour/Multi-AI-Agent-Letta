@@ -2,7 +2,9 @@
 
 An AI-powered Applicant Tracking System (ATS) built on the [Letta](https://letta.com/) multi-agent framework. Three collaborative agents — **Recruiter**, **Evaluator**, and **Outreach** — share persistent memory blocks to screen resumes, score candidates, and automatically draft personalised acceptance or rejection emails.
 
----
+
+## Demo
+![Demo](data/demo.gif)
 
 ## Architecture
 
